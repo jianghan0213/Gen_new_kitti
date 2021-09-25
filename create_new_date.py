@@ -27,8 +27,8 @@ class CreateNewDate():
         self.save_path_2 = database_save_path + '/imgs_2'
         self.class_aug_nums = {"Car": 24, "Pedestrian": 12, "Cyclist": 12}
 
-        info_path = os.path.join(self.kitti_root, "../kitti_infos_train.pkl")
-        db_info_path = os.path.join(self.kitti_root, "../kitti_dbinfos_train.pkl")
+        info_path = os.path.join(self.kitti_root, "kitti_infos_train.pkl")
+        db_info_path = os.path.join(self.kitti_root, "kitti_dbinfos_train.pkl")
         with open(info_path, 'rb') as f:
             self.kitti_infos = pickle.load(f)
         with open(db_info_path, 'rb') as f:
@@ -137,23 +137,23 @@ class CreateNewDate():
                         init_bboxes = np.vstack((init_bboxes, box2d[np.newaxis, ...]))
                     else:
                         init_bboxes = box2d[np.newaxis, ...].copy()
-                        img_1[int(box2d[1]):int(box2d[3]), int(box2d[0]):int(box2d[2]), :] = cropImg
-                        ins_anno = {
-                            "name": names[k],
-                            "label": TYPE_ID_CONVERSION[names[k]],
-                            "bbox": box2d,
-                            "alpha": alphas["alpha"],
-                            "dim": dims["dim"],
-                            "loc": locs["loc"],
-                            "roty": rotys["roty"],
-                            "P": info["calib/P2"],
-                            "difficulty": difficulty["difficulty"],
-                            "truncated": truncated["truncated"],
-                            "occluded": occluded["occluded"],
-                            "flipped": False,
-                            "score": scores["score"]
-                        }
-                        embedding_annos.append(ins_anno)
+                    img_1[int(box2d[1]):int(box2d[3]), int(box2d[0]):int(box2d[2]), :] = cropImg
+                    ins_anno = {
+                        "name": names[k],
+                        "label": TYPE_ID_CONVERSION[names[k]],
+                        "bbox": box2d,
+                        "alpha": alphas[k],
+                        "dim": dims[k],
+                        "loc": locs[k],
+                        "roty": rotys[k],
+                        "P": info["calib/P2"],
+                        "difficulty": difficulty[k],
+                        "truncated": truncated[k],
+                        "occluded": occluded[k],
+                        "flipped": False,
+                        "score": scores[k]
+                    }
+                    embedding_annos.append(ins_anno)
 
                 img_shape_key = f"{img_1.shape[0]}_{img_1.shape[1]}"
                 for aug_class, aug_nums in self.class_aug_nums.items():
@@ -161,19 +161,21 @@ class CreateNewDate():
                         class_db_infos = self.db_infos[aug_class][img_shape_key]
                         trial_num = aug_nums + 45
                         nums = 0
-                        for i in range(trial_num):
+                        for _ in range(trial_num):
                             if nums >= aug_nums:
                                 break
                             sample_id = self.sample_counter[aug_class][img_shape_key]
                             self.update_sample_counter(aug_class, img_shape_key)
                             ins = class_db_infos[sample_id]
-                            patch_img_path = os.path.join(self.kitti_root, "../" + ins["path"])
+                            patch_img_path = os.path.join(self.kitti_root, ins["path"])
+                            # print('====================================')
+                            # print(patch_img_path)
                             # if use_right:
                             #     box2d = ins["bbox_r"]
                             #     P = ins["P3"]
                             #     patch_img_path = patch_img_path.replace("image_2", "image_3")
                             # else:
-                            #     box2d = ins["bbox_l"]
+                            box2d = ins["bbox_l"]
                             #     P = ins["P2"]
 
                             if ins["difficulty"] > 0:
@@ -187,7 +189,7 @@ class CreateNewDate():
                             else:
                                 init_bboxes = box2d[np.newaxis, ...].copy()
                             patch_img = cv2.imread(patch_img_path)
-                            img[int(box2d[1]):int(box2d[3]), int(box2d[0]):int(box2d[2]), :] = patch_img
+                            img_1[int(box2d[1]):int(box2d[3]), int(box2d[0]):int(box2d[2]), :] = patch_img
                             ins_anno = {
                                 "name": ins["name"],
                                 "label": TYPE_ID_CONVERSION[ins["name"]],
@@ -217,22 +219,28 @@ class CreateNewDate():
                 img_1 = Image.fromarray(cv2.cvtColor(img_1, cv2.COLOR_BGR2RGB))
                 filename_1 = f"{i}_{j}_1.png"
                 filepath_1 = os.path.join(self.save_path_1, filename_1)
-                cv2.imwrite(filepath_1, img_1)
+                # cv2.imwrite(filepath_1, img_1)
+                img_1.save(filepath_1)
 
                 img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
                 filename_2 = f"{i}_{j}_2.png"
                 filepath_2 = os.path.join(self.save_path_2, filename_2)
-                cv2.imwrite(filepath_2, img)
+                # cv2.imwrite(filepath_2, img)
+                img.save(filepath_2)
+                print(f'Save image pairs {i}_{j} done!')
 
 
     def get_info(self, index):
         info = self.kitti_infos[index]
         annos = info["annos"]
-        img_path = os.path.join(self.kitti_root, "../" + info["img_path"])
+        img_path = os.path.join(self.kitti_root, info["img_path"])
+        print(img_path)
         img = cv2.imread(img_path)
+        # print(img)
         return info, annos, img
 
 
-kitti_root = "datasets/kitti"
-database_save_path = "datasets/new_kitti"
+kitti_root = "../datasets/kitti"
+database_save_path = "../datasets/new_kitti"
 d = CreateNewDate(kitti_root, database_save_path)
+d()
